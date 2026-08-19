@@ -1,123 +1,156 @@
-import type { AppState, Task, Transaction, VaultEntry, WorkTask, Note, Budget } from "./types";
-import { addDaysISO, daysAgoISO, todayISO, uid } from "./utils";
+import type { AppState, Priority, Project, WorkStatus, WorkTask } from "./types";
+import { addDaysISO, daysAgoISO, todayISO } from "./utils";
+
+function wt(
+  projectId: string,
+  seq: number,
+  title: string,
+  tag: string,
+  priority: Priority,
+  status: WorkStatus,
+  due?: string
+): WorkTask {
+  return {
+    id: `wt-${projectId}-${seq}`,
+    projectId,
+    seq,
+    title,
+    tag,
+    priority,
+    status,
+    due,
+  };
+}
 
 export function buildSeed(): AppState {
-  const today = todayISO();
-  const T = (
-    type: Transaction["type"],
-    amount: number,
-    category: string,
-    note: string,
-    back: number
-  ): Transaction => ({ id: uid(), type, amount, category, note, date: daysAgoISO(back) });
+  const t = todayISO();
 
-  const transactions: Transaction[] = [
-    // last month (for comparison)
-    T("income", 4200, "salary", "Monthly salary — Acme Corp", 43),
-    T("expense", 1450, "housing", "Rent — Maple St. apartment", 42),
-    T("expense", 86.4, "groceries", "Weekly grocery run", 40),
-    T("expense", 42.5, "dining", "Ramen night with the team", 38),
-    T("expense", 79, "bills", "Fiber internet", 36),
-    T("expense", 15.49, "subs", "Netflix", 34),
-    T("expense", 64, "transport", "Metro pass + fuel", 33),
-    T("expense", 118, "shopping", "Running shoes", 31),
-    // this month
-    T("income", 4200, "salary", "Monthly salary — Acme Corp", 12),
-    T("income", 650, "freelance", "Landing page gig — Nova Labs", 3),
-    T("expense", 1450, "housing", "Rent — Maple St. apartment", 12),
-    T("expense", 92.15, "bills", "Electricity bill", 10),
-    T("expense", 79, "bills", "Fiber internet", 9),
-    T("expense", 61.2, "groceries", "Groceries — fresh market", 8),
-    T("expense", 11.99, "subs", "Spotify", 7),
-    T("expense", 2.99, "subs", "iCloud 200GB", 7),
-    T("expense", 15.49, "subs", "Netflix", 6),
-    T("expense", 24.8, "dining", "Coffee + brunch", 5),
-    T("expense", 38, "transport", "Fuel top-up", 4),
-    T("expense", 45, "health", "Gym membership", 4),
-    T("expense", 73.4, "groceries", "Groceries — weekend stock", 2),
-    T("expense", 32, "fun", "Cinema — Dune marathon", 1),
-    T("expense", 18.6, "dining", "Team lunch", 0),
-  ];
-
-  const budgets: Budget[] = [
-    { id: uid(), category: "groceries", limit: 420 },
-    { id: uid(), category: "dining", limit: 220 },
-    { id: uid(), category: "transport", limit: 140 },
-    { id: uid(), category: "bills", limit: 260 },
-    { id: uid(), category: "health", limit: 90 },
-    { id: uid(), category: "fun", limit: 120 },
-    { id: uid(), category: "shopping", limit: 180 },
-    { id: uid(), category: "subs", limit: 60 },
-  ];
-
-  const tasks: Task[] = [
-    { id: uid(), title: "Review PR #482 — OAuth token refresh", done: false, priority: "high", due: today, createdAt: daysAgoISO(1) },
-    { id: uid(), title: "Ship weekly status report to Dana", done: false, priority: "high", due: today, createdAt: daysAgoISO(1) },
-    { id: uid(), title: "Reply to landlord about lease renewal", done: false, priority: "med", due: today, createdAt: daysAgoISO(2) },
-    { id: uid(), title: "Prep demo environment for v2.4 release", done: false, priority: "high", due: addDaysISO(today, 1), createdAt: daysAgoISO(1) },
-    { id: uid(), title: "Book dentist appointment", done: false, priority: "low", due: addDaysISO(today, 5), createdAt: daysAgoISO(3) },
-    { id: uid(), title: "Plan Saturday hike — Eagle Creek", done: false, priority: "low", due: addDaysISO(today, 3), createdAt: daysAgoISO(2) },
-    { id: uid(), title: "30-minute run along the river", done: true, priority: "med", due: today, createdAt: daysAgoISO(1) },
-    { id: uid(), title: "Water the plants + feed the cat", done: true, priority: "low", due: today, createdAt: today },
-    { id: uid(), title: "Clear inbox to zero", done: true, priority: "med", due: daysAgoISO(1), createdAt: daysAgoISO(2) },
-  ];
-
-  const work: WorkTask[] = [
-    { id: uid(), seq: 118, title: "Rotate service-account keys (prod)", tag: "security", priority: "high", status: "backlog", due: addDaysISO(today, 4) },
-    { id: uid(), seq: 119, title: "Document on-call runbook for pager alerts", tag: "docs", priority: "low", status: "backlog" },
-    { id: uid(), seq: 120, title: "Upgrade staging cluster to Node 22 LTS", tag: "devops", priority: "med", status: "backlog" },
-    { id: uid(), seq: 121, title: "Fix flaky CI pipeline — auth service tests", tag: "devops", priority: "high", status: "doing", due: today },
-    { id: uid(), seq: 122, title: "Implement SSO for the admin panel", tag: "dev", priority: "med", status: "doing", due: addDaysISO(today, 2) },
-    { id: uid(), seq: 123, title: "PR #482 — OAuth token refresh flow", tag: "dev", priority: "high", status: "review" },
-    { id: uid(), seq: 124, title: "Patch vulnerable deps on legacy host", tag: "security", priority: "high", status: "review", due: today },
-    { id: uid(), seq: 125, title: "Provision Grafana dashboards for checkout", tag: "devops", priority: "med", status: "done" },
-    { id: uid(), seq: 126, title: "Reset MFA for finance team (3 users)", tag: "support", priority: "low", status: "done" },
-    { id: uid(), seq: 127, title: "Q3 access audit — offboarded accounts", tag: "security", priority: "med", status: "done" },
-  ];
-
-  const vault: VaultEntry[] = [
-    { id: uid(), site: "GitHub", username: "alex.rivera", password: "Gh!42-river-QUO-xenon", url: "github.com", favorite: true, updatedAt: daysAgoISO(21) },
-    { id: uid(), site: "AWS Console", username: "alex@acme.io", password: "Aws#9-mango-TIDE-brisk", url: "aws.amazon.com", favorite: true, updatedAt: daysAgoISO(9) },
-    { id: uid(), site: "Figma", username: "alex@acme.io", password: "fig-KITE-77-plume$", url: "figma.com", favorite: false, updatedAt: daysAgoISO(48) },
-    { id: uid(), site: "Acme VPN", username: "arivera", password: "vpn2024!", url: "vpn.acme.io", favorite: false, updatedAt: daysAgoISO(120) },
-    { id: uid(), site: "Netflix", username: "alex.rivera@mail.com", password: "popcorn", url: "netflix.com", favorite: false, updatedAt: daysAgoISO(200) },
-  ];
-
-  const notes: Note[] = [
-    {
-      id: uid(),
-      title: "Standup — Monday",
-      body: "• Auth refresh PR needs second review\n• Staging flake: retry count bumped to 3\n• Dana wants demo env ready by Thursday\n• Blocker: waiting on infra quota increase",
-      color: "aqua",
-      pinned: true,
-      updatedAt: daysAgoISO(1),
-    },
-    {
-      id: uid(),
-      title: "Reading list",
-      body: "1. Designing Data-Intensive Applications (ch. 7)\n2. The Phoenix Project\n3. Blog: 'P99 latency budget' — SRE weekly",
-      color: "mint",
-      pinned: false,
-      updatedAt: daysAgoISO(6),
-    },
-    {
-      id: uid(),
-      title: "Gift ideas — Sam's birthday",
-      body: "Mechanical keyboard keycap set? Espresso grinder. Board game: Wingspan. Ask Maya what he's into lately.",
-      color: "amber",
-      pinned: false,
-      updatedAt: daysAgoISO(14),
-    },
+  const projects: Project[] = [
+    { id: "proj-atlas", name: "Atlas CRM", code: "ATL", color: "#5bc8f5", createdAt: daysAgoISO(42) },
+    { id: "proj-infra", name: "Infra & Cloud", code: "INF", color: "#3ecf8e", createdAt: daysAgoISO(31) },
+    { id: "proj-desk", name: "Helpdesk", code: "HDS", color: "#f5b84b", createdAt: daysAgoISO(18) },
   ];
 
   return {
     name: "Alex",
-    transactions,
-    budgets,
-    tasks,
-    workSeq: 127,
-    work,
-    vault,
-    notes,
+    transactions: [
+      { id: "tx-s1", type: "income", amount: 3400, category: "salary", note: "Monthly salary", date: daysAgoISO(9) },
+      { id: "tx-1", type: "expense", amount: 1250, category: "housing", note: "Rent — Maple St. apartment", date: daysAgoISO(8) },
+      { id: "tx-2", type: "expense", amount: 86.4, category: "groceries", note: "Weekly grocery run", date: daysAgoISO(7) },
+      { id: "tx-3", type: "expense", amount: 64.2, category: "transport", note: "Fuel top-up", date: daysAgoISO(6) },
+      { id: "tx-4", type: "expense", amount: 32.5, category: "dining", note: "Ramen with the team", date: daysAgoISO(5) },
+      { id: "tx-5", type: "expense", amount: 118, category: "bills", note: "Electricity + water", date: daysAgoISO(4) },
+      { id: "tx-6", type: "income", amount: 450, category: "freelance", note: "Landing page gig", date: daysAgoISO(4) },
+      { id: "tx-7", type: "expense", amount: 42.99, category: "fun", note: "Concert ticket", date: daysAgoISO(3) },
+      { id: "tx-8", type: "expense", amount: 27.97, category: "subs", note: "Streaming bundle", date: daysAgoISO(2) },
+      { id: "tx-9", type: "expense", amount: 96.3, category: "groceries", note: "Costco haul", date: daysAgoISO(1) },
+      { id: "tx-10", type: "expense", amount: 18.75, category: "dining", note: "Coffee + bagel", date: daysAgoISO(1) },
+      { id: "tx-11", type: "expense", amount: 24.5, category: "transport", note: "Metro card reload", date: t },
+    ],
+    budgets: [
+      { id: "bg-1", category: "housing", limit: 1300 },
+      { id: "bg-2", category: "groceries", limit: 420 },
+      { id: "bg-3", category: "dining", limit: 200 },
+      { id: "bg-4", category: "transport", limit: 160 },
+      { id: "bg-5", category: "bills", limit: 240 },
+      { id: "bg-6", category: "fun", limit: 150 },
+      { id: "bg-7", category: "subs", limit: 60 },
+      { id: "bg-8", category: "shopping", limit: 180 },
+    ],
+    tasks: [
+      { id: "tk-1", title: "Morning run — 5k loop", done: true, priority: "med", due: t, createdAt: t },
+      { id: "tk-2", title: "Review monthly budget vs actuals", done: false, priority: "high", due: t, createdAt: daysAgoISO(1) },
+      { id: "tk-3", title: "Call the dentist — reschedule", done: false, priority: "med", due: t, createdAt: daysAgoISO(2) },
+      { id: "tk-4", title: "Water the balcony plants", done: false, priority: "low", due: t, createdAt: t },
+      { id: "tk-5", title: "Groceries: refill fridge staples", done: false, priority: "high", due: addDaysISO(t, 1), createdAt: t },
+      { id: "tk-6", title: "Pay electricity bill", done: false, priority: "high", due: daysAgoISO(1), createdAt: daysAgoISO(4) },
+      { id: "tk-7", title: "Plan Saturday hike with friends", done: false, priority: "low", due: addDaysISO(t, 3), createdAt: daysAgoISO(1) },
+      { id: "tk-8", title: "30 min Spanish practice", done: true, priority: "med", due: t, createdAt: t },
+    ],
+    projects,
+    work: [
+      wt("proj-atlas", 1, "SSO integration with Okta", "security", "high", "review", addDaysISO(t, 1)),
+      wt("proj-atlas", 2, "Fix token refresh loop on mobile", "dev", "high", "doing", t),
+      wt("proj-atlas", 3, "Write API docs for v2 endpoints", "docs", "med", "backlog", addDaysISO(t, 6)),
+      wt("proj-atlas", 4, "Deploy staging environment", "devops", "med", "done"),
+      wt("proj-infra", 1, "Rotate TLS certs on k8s ingress", "devops", "high", "doing", addDaysISO(t, 2)),
+      wt("proj-infra", 2, "Set up Grafana alert rules", "devops", "med", "backlog", addDaysISO(t, 9)),
+      wt("proj-infra", 3, "Q3 disaster-recovery drill report", "docs", "low", "done"),
+      wt("proj-desk", 1, "Provision laptop for new hire", "support", "med", "review", t),
+      wt("proj-desk", 2, "VPN access issue — ticket #142", "support", "low", "backlog", addDaysISO(t, 3)),
+    ],
+    vault: [
+      {
+        id: "vw-1",
+        site: "GitHub",
+        username: "alex.dev",
+        password: "Tr!bute-9Kilobyte-marble",
+        url: "github.com",
+        favorite: true,
+        updatedAt: daysAgoISO(12),
+      },
+      {
+        id: "vw-2",
+        site: "AWS Console",
+        username: "alex@company.io",
+        password: "N0de!repl1ca-Sunset-42",
+        url: "aws.amazon.com",
+        favorite: true,
+        updatedAt: daysAgoISO(6),
+      },
+      {
+        id: "vw-3",
+        site: "Jira",
+        username: "alex@company.io",
+        password: "sprint2023",
+        url: "company.atlassian.net",
+        favorite: false,
+        updatedAt: daysAgoISO(45),
+      },
+      {
+        id: "vw-4",
+        site: "Netflix",
+        username: "alex@home.me",
+        password: "Popcorn&Ch1ll#2024",
+        url: "netflix.com",
+        favorite: false,
+        updatedAt: daysAgoISO(30),
+      },
+      {
+        id: "vw-5",
+        site: "Banking",
+        username: "a.moreau",
+        password: "V4ult!Ledger-Cobalt-88",
+        url: "mybank.com",
+        favorite: true,
+        updatedAt: daysAgoISO(3),
+      },
+    ],
+    notes: [
+      {
+        id: "nt-1",
+        title: "Standup notes",
+        body: "Blockers: staging DB migration still pending.\nAsk infra for a 30-min slot on Thursday.",
+        color: "aqua",
+        pinned: true,
+        updatedAt: t,
+      },
+      {
+        id: "nt-2",
+        title: "Gift ideas",
+        body: "Mom: espresso grinder · Sam: mechanical keyboard keycaps · June: board game night pack.",
+        color: "amber",
+        pinned: false,
+        updatedAt: daysAgoISO(2),
+      },
+      {
+        id: "nt-3",
+        title: "Reading list",
+        body: "• Designing Data-Intensive Applications\n• The Phoenix Project\n• Deep Work",
+        color: "mint",
+        pinned: false,
+        updatedAt: daysAgoISO(5),
+      },
+    ],
   };
 }

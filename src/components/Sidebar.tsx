@@ -109,7 +109,7 @@ export function Sidebar({
             </span>
           </Ring>
           <div className="min-w-0">
-            <div className="text-[0.8rem] font-semibold leading-tight">Daily tasks</div>
+            <div className="text-[0.8rem] font-semibold leading-tight">Personal tasks</div>
             <div className="mt-0.5 font-mono text-[10.5px] text-dim">
               {done}/{total} done · {todayISO().slice(5).replace("-", "/")}
             </div>

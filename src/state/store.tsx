@@ -10,10 +10,9 @@ import {
 } from "react";
 import type {
   AppState,
-  Budget,
   Note,
   Priority,
-  Task,
+  Project,
   Transaction,
   VaultEntry,
   WorkStatus,
@@ -28,17 +27,46 @@ function loadState(): AppState {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as AppState;
+      const p = JSON.parse(raw) as Partial<AppState>;
       if (
-        parsed &&
-        Array.isArray(parsed.transactions) &&
-        Array.isArray(parsed.tasks) &&
-        Array.isArray(parsed.work) &&
-        Array.isArray(parsed.vault) &&
-        Array.isArray(parsed.notes) &&
-        Array.isArray(parsed.budgets)
+        p &&
+        Array.isArray(p.transactions) &&
+        Array.isArray(p.tasks) &&
+        Array.isArray(p.work) &&
+        Array.isArray(p.vault) &&
+        Array.isArray(p.notes) &&
+        Array.isArray(p.budgets)
       ) {
-        return { ...parsed, workSeq: parsed.workSeq ?? 100, name: parsed.name ?? "Alex" };
+        let projects = Array.isArray(p.projects) ? p.projects : null;
+        let work = p.work as WorkTask[];
+        if (!projects || projects.length === 0) {
+          // migrate from the pre-project version
+          const gen: Project = {
+            id: "proj-general",
+            name: "General IT",
+            code: "GEN",
+            color: "#5bc8f5",
+            createdAt: todayISO(),
+          };
+          projects = [gen];
+          work = work.map((w) => ({ ...w, projectId: w.projectId ?? gen.id }));
+        } else {
+          const known = new Set(projects.map((pr) => pr.id));
+          const fallback = projects[0].id;
+          work = work.map((w) =>
+            w.projectId && known.has(w.projectId) ? w : { ...w, projectId: fallback }
+          );
+        }
+        return {
+          name: p.name ?? "Alex",
+          transactions: p.transactions,
+          budgets: p.budgets,
+          tasks: p.tasks,
+          projects,
+          work,
+          vault: p.vault,
+          notes: p.notes,
+        };
       }
     }
   } catch {
@@ -68,7 +96,16 @@ interface StoreCtx {
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
   clearDoneTasks: () => void;
-  addWork: (w: { title: string; tag: string; priority: Priority; due?: string }) => void;
+  addProject: (p: { name: string; code: string; color: string }) => void;
+  updateProject: (id: string, patch: Partial<Project>) => void;
+  deleteProject: (id: string) => void;
+  addWork: (w: {
+    title: string;
+    tag: string;
+    priority: Priority;
+    due?: string;
+    projectId: string;
+  }) => void;
   moveWork: (id: string, status: WorkStatus) => void;
   deleteWork: (id: string) => void;
   addVault: (e: Omit<VaultEntry, "id" | "updatedAt" | "favorite"> & { favorite?: boolean }) => void;
@@ -140,15 +177,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })),
       deleteTask: (id) => setState((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== id) })),
       clearDoneTasks: () => setState((s) => ({ ...s, tasks: s.tasks.filter((t) => !t.done) })),
-      addWork: (w) =>
+      addProject: (p) =>
         setState((s) => ({
           ...s,
-          workSeq: s.workSeq + 1,
-          work: [
-            { id: uid(), seq: s.workSeq + 1, status: "backlog" as WorkStatus, ...w },
-            ...s.work,
+          projects: [
+            ...s.projects,
+            { id: uid(), name: p.name, code: p.code.toUpperCase(), color: p.color, createdAt: todayISO() },
           ],
         })),
+      updateProject: (id, patch) =>
+        setState((s) => ({
+          ...s,
+          projects: s.projects.map((p) =>
+            p.id === id ? { ...p, ...patch, code: (patch.code ?? p.code).toUpperCase() } : p
+          ),
+        })),
+      deleteProject: (id) =>
+        setState((s) => ({
+          ...s,
+          projects: s.projects.filter((p) => p.id !== id),
+          work: s.work.filter((w) => w.projectId !== id),
+        })),
+      addWork: (w) =>
+        setState((s) => {
+          const seq =
+            s.work.filter((t) => t.projectId === w.projectId).reduce((m, t) => Math.max(m, t.seq), 0) + 1;
+          return {
+            ...s,
+            work: [{ id: uid(), seq, status: "backlog" as WorkStatus, ...w }, ...s.work],
+          };
+        }),
       moveWork: (id, status) =>
         setState((s) => ({
           ...s,

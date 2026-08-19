@@ -35,9 +35,18 @@ export interface Task {
 
 export type WorkStatus = "backlog" | "doing" | "review" | "done";
 
+export interface Project {
+  id: string;
+  name: string;
+  code: string; // 2–5 char ticket prefix, e.g. ATL
+  color: string;
+  createdAt: string;
+}
+
 export interface WorkTask {
   id: string;
   seq: number;
+  projectId: string;
   title: string;
   tag: string;
   priority: Priority;
@@ -69,7 +78,7 @@ export interface AppState {
   transactions: Transaction[];
   budgets: Budget[];
   tasks: Task[];
-  workSeq: number;
+  projects: Project[];
   work: WorkTask[];
   vault: VaultEntry[];
   notes: Note[];
@@ -139,6 +148,17 @@ export const PRIORITY_META: Record<Priority, { label: string; color: string }> =
   med: { label: "Medium", color: "#f5b84b" },
   high: { label: "High", color: "#f2705b" },
 };
+
+export const PROJECT_COLORS = [
+  "#5bc8f5",
+  "#3ecf8e",
+  "#f5b84b",
+  "#f2705b",
+  "#c79bf2",
+  "#f27e9d",
+  "#8fd3c7",
+  "#ead163",
+];
 
 export const NOTE_COLORS: Record<string, { bg: string; border: string; ink: string }> = {
   amber: { bg: "rgba(245,184,75,0.07)", border: "rgba(245,184,75,0.32)", ink: "#f5b84b" },

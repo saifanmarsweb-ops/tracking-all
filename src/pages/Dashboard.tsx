@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Section } from "../lib/types";
-import { PRIORITY_META, WORK_COLUMNS, catById } from "../lib/types";
+import { PRIORITY_META, catById } from "../lib/types";
 import {
   addDaysISO,
   cls,
@@ -102,7 +102,7 @@ export default function Dashboard({ onNav }: { onNav: Nav }) {
   const quick: { label: string; icon: React.ReactNode; go: () => void }[] = [
     { label: "Log expense", icon: <IconWallet size={13} />, go: () => onNav("finance", { tx: "expense" }) },
     { label: "Log income", icon: <IconTrendUp size={13} />, go: () => onNav("finance", { tx: "income" }) },
-    { label: "New task", icon: <IconTasks size={13} />, go: () => onNav("tasks", { add: true }) },
+    { label: "Personal task", icon: <IconTasks size={13} />, go: () => onNav("tasks", { add: true }) },
     { label: "New ticket", icon: <IconTerminal size={13} />, go: () => onNav("work", { add: true }) },
     { label: "Add secret", icon: <IconKey size={13} />, go: () => onNav("vault", { add: true }) },
     { label: "Write note", icon: <IconNote size={13} />, go: () => onNav("notes", { add: true }) },
@@ -148,9 +148,10 @@ export default function Dashboard({ onNav }: { onNav: Nav }) {
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-mist">
             {openTasks.length > 0 ? (
               <>
-                You have <b className="text-fog">{openTasks.length} open task{openTasks.length > 1 && "s"}</b>,{" "}
-                <b className="text-fog">{doing.length + review.length} work item{doing.length + review.length !== 1 && "s"}</b> in
-                flight, and you&apos;ve spent <b className="text-fog">{fmtMoney(spentToday)}</b> today.
+                You have <b className="text-fog">{openTasks.length} personal task{openTasks.length > 1 && "s"}</b> open,{" "}
+                <b className="text-fog">{doing.length + review.length} office ticket{doing.length + review.length !== 1 && "s"}</b>{" "}
+                in flight across <b className="text-fog">{state.projects.length} project{state.projects.length !== 1 && "s"}</b>, and
+                you&apos;ve spent <b className="text-fog">{fmtMoney(spentToday)}</b> today.
               </>
             ) : (
               <>All tasks clear — a rare and beautiful sight. Maybe log a win below.</>
@@ -218,7 +219,7 @@ export default function Dashboard({ onNav }: { onNav: Nav }) {
           {
             label: "Work in flight",
             value: String(doing.length),
-            sub: `${review.length} awaiting review`,
+            sub: `${review.length} in review · ${state.projects.length} project${state.projects.length !== 1 ? "s" : ""}`,
             icon: <IconTerminal size={15} />,
             color: "var(--color-aqua)",
           },
@@ -251,10 +252,10 @@ export default function Dashboard({ onNav }: { onNav: Nav }) {
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 font-display text-lg font-bold">
                 <IconZap size={16} className="text-amber" />
-                Today&apos;s focus
+                Personal focus
               </h2>
               <button className="chip" onClick={() => onNav("tasks")}>
-                All tasks <IconArrowUpR size={12} />
+                Full list <IconArrowUpR size={12} />
               </button>
             </div>
             {focus.length === 0 ? (
@@ -360,39 +361,59 @@ export default function Dashboard({ onNav }: { onNav: Nav }) {
           {/* work pipeline */}
           <section className="panel animate-rise p-5" style={stagger(5)}>
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold">Work pipeline</h2>
+              <h2 className="font-display text-lg font-bold">Office projects</h2>
               <button className="chip" onClick={() => onNav("work")}>
                 Board <IconArrowUpR size={12} />
               </button>
             </div>
-            <div className="mt-3.5 grid grid-cols-4 gap-2">
-              {WORK_COLUMNS.map((c) => {
-                const n = state.work.filter((w) => w.status === c.id).length;
+            <div className="mt-3.5 space-y-2.5">
+              {state.projects.slice(0, 4).map((p) => {
+                const tickets = state.work.filter((w) => w.projectId === p.id);
+                const open = tickets.filter((w) => w.status !== "done").length;
+                const frac = tickets.length ? (tickets.length - open) / tickets.length : 0;
                 return (
-                  <div key={c.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-2 text-center">
-                    <div className="tabular font-display text-lg font-bold" style={{ color: c.color }}>
-                      {n}
+                  <div key={p.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 flex-none rounded-[4px]" style={{ background: p.color }} />
+                      <span className="min-w-0 flex-1 truncate text-xs font-bold">{p.name}</span>
+                      <span className="flex-none font-mono text-[9.5px] font-bold tracking-wide" style={{ color: p.color }}>
+                        {p.code}
+                      </span>
+                      <span className="tabular flex-none font-mono text-[10px] text-mist">
+                        {open} open / {tickets.length}
+                      </span>
                     </div>
-                    <div className="mt-0.5 truncate font-mono text-[8.5px] uppercase tracking-wider text-dim">
-                      {c.label}
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.07]">
+                      <div
+                        className="animate-growx h-full rounded-full"
+                        style={{ width: `${(frac * 100).toFixed(1)}%`, background: p.color }}
+                      />
                     </div>
                   </div>
                 );
               })}
+              {state.projects.length === 0 && (
+                <p className="text-xs text-dim">No projects yet — spin one up on the board.</p>
+              )}
             </div>
-            {[...doing, ...review].slice(0, 2).map((w) => (
-              <div
-                key={w.id}
-                className="mt-2.5 flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-ink-800/60 px-3 py-2.5 text-xs"
-              >
-                <span
-                  className="h-2 w-2 flex-none rounded-full animate-pulsesoft"
-                  style={{ background: w.status === "doing" ? "var(--color-aqua)" : "var(--color-amber)" }}
-                />
-                <span className="min-w-0 flex-1 truncate font-medium">{w.title}</span>
-                <span className="flex-none font-mono text-[10px] text-dim">#{w.seq}</span>
-              </div>
-            ))}
+            {[...doing, ...review].slice(0, 2).map((w) => {
+              const proj = state.projects.find((p) => p.id === w.projectId);
+              return (
+                <div
+                  key={w.id}
+                  className="mt-2.5 flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-ink-800/60 px-3 py-2.5 text-xs"
+                >
+                  <span
+                    className="h-2 w-2 flex-none animate-pulsesoft rounded-full"
+                    style={{ background: w.status === "doing" ? "var(--color-aqua)" : "var(--color-amber)" }}
+                  />
+                  <span className="min-w-0 flex-1 truncate font-medium">{w.title}</span>
+                  <span className="flex-none font-mono text-[10px] text-dim">
+                    {proj?.code ?? "?"}-{w.seq}
+                  </span>
+                </div>
+              );
+            })}
           </section>
 
           {/* recent money */}

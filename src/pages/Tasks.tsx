@@ -135,10 +135,10 @@ export default function Tasks({ intent }: { onNav: Nav; intent?: unknown }) {
   return (
     <div className="space-y-5">
       <SectionHead
-        kicker="Daily tasks"
+        kicker="Personal · Daily tasks"
         kickerColor="var(--color-mint)"
-        title="Today's list."
-        desc="Small, honest commitments. Check them off and watch the ring close."
+        title="Life, handled."
+        desc="Your personal side of the day — health, home, errands, and promises made to yourself. Office work lives on the IT board."
         right={
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -163,7 +163,7 @@ export default function Tasks({ intent }: { onNav: Nav; intent?: unknown }) {
             <input
               ref={inputRef}
               className="field pl-10"
-              placeholder="Add a task… press Enter to save"
+              placeholder="Add a personal task… press Enter to save"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -201,7 +201,7 @@ export default function Tasks({ intent }: { onNav: Nav; intent?: unknown }) {
               ))}
             </select>
             <button type="submit" className="btn btn-primary">
-              Add task
+              Add it
             </button>
           </div>
         </div>
@@ -239,7 +239,7 @@ export default function Tasks({ intent }: { onNav: Nav; intent?: unknown }) {
             <EmptyState
               icon={<IconTasks size={22} />}
               title="A blank slate"
-              hint="Add your first task above — future you says thanks."
+              hint="Add your first personal task — gym, groceries, calling mom, watering the plants."
             />
           )}
 
@@ -269,7 +269,7 @@ export default function Tasks({ intent }: { onNav: Nav; intent?: unknown }) {
             <EmptyState
               icon={<IconCheck size={22} />}
               title="Everything's done"
-              hint="Every open task is cleared. Close the laptop? Never. But maybe stretch."
+              hint="All personal tasks cleared. Go live a little — the list will wait."
             />
           )}
         </div>
