@@ -13,6 +13,7 @@ import {
   type IconProps,
 } from "./icons";
 import { Ring } from "./ui";
+import { BackupControls } from "./Backup";
 import { cls } from "../lib/utils";
 
 const NAV: { id: Section; label: string; icon: (p: IconProps) => React.ReactElement; hue: string }[] = [
@@ -115,10 +116,11 @@ export function Sidebar({
             </div>
           </div>
         </div>
+        <BackupControls />
         <p className="mt-3 px-1 font-mono text-[9.5px] leading-relaxed text-dim/70">
-          data stays in this browser
+          no server · data lives in this browser
           <br />
-          v1.0 · lifeos.local
+          v1.1 · lifeos.local
         </p>
       </div>
     </aside>

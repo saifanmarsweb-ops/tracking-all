@@ -253,6 +253,20 @@ export const IconAlert = (p: IconProps) => (
   </S>
 );
 
+export const IconDownload = (p: IconProps) => (
+  <S {...p}>
+    <path d="M12 3.5V14M7.5 9.5L12 14l4.5-4.5" />
+    <path d="M4.5 14.5V18a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3.5" />
+  </S>
+);
+
+export const IconUpload = (p: IconProps) => (
+  <S {...p}>
+    <path d="M12 14V3.5M7.5 8L12 3.5 16.5 8" />
+    <path d="M4.5 14.5V18a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3.5" />
+  </S>
+);
+
 export const IconDots = (p: IconProps) => (
   <S {...p} stroke="none" fill="currentColor">
     <circle cx="5.4" cy="12" r="1.4" />

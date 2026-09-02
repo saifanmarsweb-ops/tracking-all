@@ -116,6 +116,8 @@ interface StoreCtx {
   updateNote: (id: string, patch: Partial<Note>) => void;
   deleteNote: (id: string) => void;
   togglePin: (id: string) => void;
+  replaceState: (next: Partial<AppState>) => void;
+  resetToSeed: () => void;
 }
 
 const Ctx = createContext<StoreCtx | null>(null);
@@ -249,6 +251,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ...s,
           notes: s.notes.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n)),
         })),
+      replaceState: (next) =>
+        setState(() => ({
+          name: next.name ?? "Alex",
+          transactions: next.transactions ?? [],
+          budgets: next.budgets ?? [],
+          tasks: next.tasks ?? [],
+          projects: next.projects ?? [],
+          work: next.work ?? [],
+          vault: next.vault ?? [],
+          notes: next.notes ?? [],
+        })),
+      resetToSeed: () => setState(() => buildSeed()),
     }),
     [state, toasts, toast]
   );
