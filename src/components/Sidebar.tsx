@@ -51,7 +51,7 @@ export function Sidebar({
   section: Section;
   onNav: (s: Section) => void;
 }) {
-  const { state } = useStore();
+  const { state, db } = useStore();
   const done = state.tasks.filter((t) => t.done).length;
   const total = state.tasks.length;
   const frac = total ? done / total : 0;
@@ -117,11 +117,22 @@ export function Sidebar({
           </div>
         </div>
         <BackupControls />
-        <p className="mt-3 px-1 font-mono text-[9.5px] leading-relaxed text-dim/70">
-          no server · data lives in this browser
-          <br />
-          v1.1 · lifeos.local
-        </p>
+        <div className="mt-3 flex items-center gap-1.5 px-1 font-mono text-[9.5px] text-dim/80">
+          <span
+            className={cls(
+              "h-[6px] w-[6px] flex-none rounded-full",
+              db.saving ? "animate-pulsesoft bg-amber" : "bg-mint"
+            )}
+          />
+          {db.saving ? (
+            <span className="text-amber">writing to sqlite…</span>
+          ) : (
+            <span className="tabular">
+              sqlite · {(db.bytes / 1024).toFixed(1)} kb
+              {db.savedAt ? ` · ${db.savedAt}` : ""}
+            </span>
+          )}
+        </div>
       </div>
     </aside>
   );

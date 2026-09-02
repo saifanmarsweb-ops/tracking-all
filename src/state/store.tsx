@@ -12,68 +12,14 @@ import type {
   AppState,
   Note,
   Priority,
-  Project,
+  Task,
   Transaction,
   VaultEntry,
   WorkStatus,
-  WorkTask,
 } from "../lib/types";
 import { buildSeed } from "../lib/seed";
 import { todayISO, uid } from "../lib/utils";
-
-const KEY = "lifeos.state.v1";
-
-function loadState(): AppState {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as Partial<AppState>;
-      if (
-        p &&
-        Array.isArray(p.transactions) &&
-        Array.isArray(p.tasks) &&
-        Array.isArray(p.work) &&
-        Array.isArray(p.vault) &&
-        Array.isArray(p.notes) &&
-        Array.isArray(p.budgets)
-      ) {
-        let projects = Array.isArray(p.projects) ? p.projects : null;
-        let work = p.work as WorkTask[];
-        if (!projects || projects.length === 0) {
-          // migrate from the pre-project version
-          const gen: Project = {
-            id: "proj-general",
-            name: "General IT",
-            code: "GEN",
-            color: "#5bc8f5",
-            createdAt: todayISO(),
-          };
-          projects = [gen];
-          work = work.map((w) => ({ ...w, projectId: w.projectId ?? gen.id }));
-        } else {
-          const known = new Set(projects.map((pr) => pr.id));
-          const fallback = projects[0].id;
-          work = work.map((w) =>
-            w.projectId && known.has(w.projectId) ? w : { ...w, projectId: fallback }
-          );
-        }
-        return {
-          name: p.name ?? "Alex",
-          transactions: p.transactions,
-          budgets: p.budgets,
-          tasks: p.tasks,
-          projects,
-          work,
-          vault: p.vault,
-          notes: p.notes,
-        };
-      }
-    }
-  } catch {
-    /* corrupted -> reseed */
-  }
-  return buildSeed();
-}
+import { exportDbBytes, getDb, idbSave, initDb, openDbBytes, readState, writeState } from "../db/sqlite";
 
 export type ToastKind = "ok" | "warn" | "err";
 export interface Toast {
@@ -82,8 +28,16 @@ export interface Toast {
   kind: ToastKind;
 }
 
+export interface DbStats {
+  ready: boolean;
+  saving: boolean;
+  bytes: number;
+  savedAt: string | null; // hh:mm:ss
+}
+
 interface StoreCtx {
   state: AppState;
+  db: DbStats;
   toasts: Toast[];
   toast: (msg: string, kind?: ToastKind) => void;
   setName: (name: string) => void;
@@ -96,18 +50,12 @@ interface StoreCtx {
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
   clearDoneTasks: () => void;
-  addProject: (p: { name: string; code: string; color: string }) => void;
-  updateProject: (id: string, patch: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
-  addWork: (w: {
-    title: string;
-    tag: string;
-    priority: Priority;
-    due?: string;
-    projectId: string;
-  }) => void;
+  addWork: (w: { title: string; tag: string; priority: Priority; due?: string; projectId: string }) => void;
   moveWork: (id: string, status: WorkStatus) => void;
   deleteWork: (id: string) => void;
+  addProject: (p: { name: string; code: string; color: string }) => string;
+  updateProject: (id: string, patch: { name?: string; code?: string; color?: string }) => void;
+  deleteProject: (id: string) => void;
   addVault: (e: Omit<VaultEntry, "id" | "updatedAt" | "favorite"> & { favorite?: boolean }) => void;
   updateVault: (id: string, patch: Partial<VaultEntry>) => void;
   deleteVault: (id: string) => void;
@@ -118,24 +66,18 @@ interface StoreCtx {
   togglePin: (id: string) => void;
   replaceState: (next: Partial<AppState>) => void;
   resetToSeed: () => void;
+  exportDb: () => Uint8Array | null;
+  importDbFile: (file: File) => Promise<void>;
 }
 
 const Ctx = createContext<StoreCtx | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(loadState);
+  const [state, setState] = useState<AppState>(buildSeed);
+  const [stats, setStats] = useState<DbStats>({ ready: false, saving: false, bytes: 0, savedAt: null });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<number[]>([]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-    } catch {
-      /* storage full — ignore */
-    }
-  }, [state]);
-
-  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+  const saveTimer = useRef<number | null>(null);
 
   const toast = useCallback((msg: string, kind: ToastKind = "ok") => {
     const id = uid();
@@ -145,9 +87,63 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  /* boot: open (or create + seed) the SQLite database */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { database } = await initDb();
+        if (!alive) return;
+        const loaded = readState(database);
+        setState(loaded);
+        setStats({ ready: true, saving: false, bytes: database.export().length, savedAt: null });
+      } catch {
+        if (!alive) return;
+        // fallback: in-memory seeded db so the app still works
+        setState(buildSeed());
+        setStats({ ready: true, saving: false, bytes: 0, savedAt: null });
+        toast("Couldn't open local database — running in memory", "err");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* debounced persistence of every change into SQLite + IndexedDB */
+  useEffect(() => {
+    if (!stats.ready) return;
+    setStats((s) => ({ ...s, saving: true }));
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(async () => {
+      const database = getDb();
+      if (!database) return;
+      try {
+        writeState(database, state);
+        const bytes = exportDbBytes(database);
+        await idbSave(bytes);
+        setStats((s) => ({
+          ...s,
+          saving: false,
+          bytes: bytes.length,
+          savedAt: new Date().toLocaleTimeString("en-US", { hour12: false }),
+        }));
+      } catch {
+        setStats((s) => ({ ...s, saving: false }));
+      }
+    }, 500);
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [state, stats.ready]);
+
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+
   const api = useMemo<StoreCtx>(
     () => ({
       state,
+      db: stats,
       toasts,
       toast,
       setName: (name) => setState((s) => ({ ...s, name })),
@@ -179,20 +175,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         })),
       deleteTask: (id) => setState((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== id) })),
       clearDoneTasks: () => setState((s) => ({ ...s, tasks: s.tasks.filter((t) => !t.done) })),
-      addProject: (p) =>
+      addWork: (w) => {
+        const seq =
+          state.work
+            .filter((x) => x.projectId === w.projectId)
+            .reduce((m, x) => Math.max(m, x.seq), 0) + 1;
         setState((s) => ({
           ...s,
-          projects: [
-            ...s.projects,
-            { id: uid(), name: p.name, code: p.code.toUpperCase(), color: p.color, createdAt: todayISO() },
-          ],
+          work: [{ id: uid(), seq, status: "backlog" as WorkStatus, ...w }, ...s.work],
+        }));
+      },
+      moveWork: (id, status) =>
+        setState((s) => ({
+          ...s,
+          work: s.work.map((t) => (t.id === id ? { ...t, status } : t)),
         })),
+      deleteWork: (id) => setState((s) => ({ ...s, work: s.work.filter((t) => t.id !== id) })),
+      addProject: (p) => {
+        const id = uid();
+        setState((s) => ({
+          ...s,
+          projects: [...s.projects, { ...p, id, createdAt: todayISO() }],
+        }));
+        return id;
+      },
       updateProject: (id, patch) =>
         setState((s) => ({
           ...s,
-          projects: s.projects.map((p) =>
-            p.id === id ? { ...p, ...patch, code: (patch.code ?? p.code).toUpperCase() } : p
-          ),
+          projects: s.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)),
         })),
       deleteProject: (id) =>
         setState((s) => ({
@@ -200,21 +210,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           projects: s.projects.filter((p) => p.id !== id),
           work: s.work.filter((w) => w.projectId !== id),
         })),
-      addWork: (w) =>
-        setState((s) => {
-          const seq =
-            s.work.filter((t) => t.projectId === w.projectId).reduce((m, t) => Math.max(m, t.seq), 0) + 1;
-          return {
-            ...s,
-            work: [{ id: uid(), seq, status: "backlog" as WorkStatus, ...w }, ...s.work],
-          };
-        }),
-      moveWork: (id, status) =>
-        setState((s) => ({
-          ...s,
-          work: s.work.map((t) => (t.id === id ? { ...t, status } : t)),
-        })),
-      deleteWork: (id) => setState((s) => ({ ...s, work: s.work.filter((t) => t.id !== id) })),
       addVault: (e) =>
         setState((s) => ({
           ...s,
@@ -263,8 +258,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           notes: next.notes ?? [],
         })),
       resetToSeed: () => setState(() => buildSeed()),
+      exportDb: () => {
+        const database = getDb();
+        return database ? exportDbBytes(database) : null;
+      },
+      importDbFile: async (file) => {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const loaded = await openDbBytes(bytes);
+        setState(loaded);
+      },
     }),
-    [state, toasts, toast]
+    [state, stats, toasts, toast]
   );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

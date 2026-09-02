@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
 import type { Section } from "./lib/types";
-import { StoreProvider } from "./state/store";
+import { StoreProvider, useStore } from "./state/store";
 import { MobileNav, Sidebar } from "./components/Sidebar";
 import { ToastHost } from "./components/ui";
+import { IconSpark } from "./components/icons";
 import Dashboard from "./pages/Dashboard";
 import Finance from "./pages/Finance";
 import Budget from "./pages/Budget";
@@ -50,13 +51,47 @@ function Ambient() {
   );
 }
 
-export default function App() {
+function BootScreen() {
+  return (
+    <div className="relative flex min-h-screen items-center justify-center">
+      <div className="flex flex-col items-center text-center">
+        <span className="flex h-16 w-16 animate-pulsesoft items-center justify-center rounded-2xl border border-mint/25 bg-mint/10 text-mint shadow-[0_0_60px_-12px_rgba(62,207,142,0.6)]">
+          <IconSpark size={30} />
+        </span>
+        <div className="mt-5 font-display text-3xl font-bold tracking-tight">
+          Life<span className="text-mint">OS</span>
+        </div>
+        <div className="mt-3 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-dim">
+          <span className="h-[6px] w-[6px] animate-pulsesoft rounded-full bg-mint" />
+          opening local sqlite database
+          <span className="cursor-blink text-mint">_</span>
+        </div>
+        <div className="mt-5 h-[3px] w-44 overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-full w-1/3 animate-[bootbar_1.1s_ease-in-out_infinite] rounded-full bg-mint/70" />
+        </div>
+      </div>
+      <style>{`@keyframes bootbar { 0% { transform: translateX(-110%); } 100% { transform: translateX(440%); } }`}</style>
+    </div>
+  );
+}
+
+function Shell() {
+  const { db } = useStore();
   const [route, setRoute] = useState<Route>({ section: "dashboard", n: 0 });
 
   const nav = useCallback((section: Section, intent?: unknown) => {
     setRoute((r) => ({ section, intent, n: r.n + 1 }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  if (!db.ready) {
+    return (
+      <div className="relative min-h-screen">
+        <Ambient />
+        <BootScreen />
+      </div>
+    );
+  }
 
   const page = (() => {
     switch (route.section) {
@@ -78,16 +113,22 @@ export default function App() {
   })();
 
   return (
+    <div className="relative min-h-screen font-sans text-fog">
+      <Ambient />
+      <Sidebar section={route.section} onNav={nav} />
+      <MobileNav section={route.section} onNav={nav} />
+      <main className="relative z-10 mx-auto max-w-[1220px] px-4 pb-16 pt-6 sm:px-7 lg:ml-[236px] lg:px-10 lg:pt-9">
+        <div key={`${route.section}-${route.n}`}>{page}</div>
+      </main>
+      <ToastHost />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
     <StoreProvider>
-      <div className="relative min-h-screen font-sans text-fog">
-        <Ambient />
-        <Sidebar section={route.section} onNav={nav} />
-        <MobileNav section={route.section} onNav={nav} />
-        <main className="relative z-10 mx-auto max-w-[1220px] px-4 pb-16 pt-6 sm:px-7 lg:ml-[236px] lg:px-10 lg:pt-9">
-          <div key={`${route.section}-${route.n}`}>{page}</div>
-        </main>
-        <ToastHost />
-      </div>
+      <Shell />
     </StoreProvider>
   );
 }

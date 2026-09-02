@@ -453,7 +453,7 @@ export default function Dashboard({ onNav }: { onNav: Nav }) {
       <div className="animate-rise flex flex-wrap items-center justify-between gap-3 pb-2 pt-1" style={stagger(7)}>
         <p className="flex items-center gap-2 font-mono text-[10px] text-dim/70">
           <IconSpark size={11} className="text-mint/60" />
-          LifeOS · everything is saved locally in your browser — no account, no cloud, no leaks.
+          LifeOS · powered by a real SQLite database (sql.js/WASM), stored on-device — no account, no cloud, no leaks.
         </p>
         <BackupControls compact />
       </div>
